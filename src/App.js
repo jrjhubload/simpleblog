@@ -8,6 +8,8 @@ function App() {
   const [showForm, setShowForm] = useState(false); // This state is no longer strictly needed due to currentPage
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
+  const [image, setImage] = useState(null); // New state for image file
+  const [imageUrl, setImageUrl] = useState(''); // New state for displaying existing image URL
   const [notification, setNotification] = useState({ message: '', type: '' });
   const [currentPage, setCurrentPage] = useState('list'); // 'list', 'create', 'view', 'edit'
 
@@ -54,6 +56,8 @@ function App() {
       setCurrentPost(data);
       setTitle(data.title); // Pre-fill for potential edit
       setContent(data.content); // Pre-fill for potential edit
+      setImageUrl(data.image); // Set existing image URL
+      setImage(null); // Clear file input when viewing/editing
       setCurrentPage('view'); // Change to view page
     } catch (error) {
       console.error("Error fetching post:", error);
@@ -64,7 +68,19 @@ function App() {
   // Handle form submission for creating or updating a post
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const postData = { title, content };
+
+    const formData = new FormData();
+    formData.append('title', title);
+    formData.append('content', content);
+    if (image) {
+      formData.append('image', image);
+    } else if (imageUrl && currentPage === 'edit' && !image) {
+      // If no new image is selected but an old one exists, retain it
+      // Django REST Framework's ModelSerializer handles this correctly if the field is not sent
+      // but explicitly setting it to null if the user removed it, or not appending if keeping old
+    }
+
+
     let method = 'POST';
     let url = API_BASE_URL;
 
@@ -76,19 +92,24 @@ function App() {
     try {
       const response = await fetch(url, {
         method: method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(postData),
+        // When sending FormData, do NOT set 'Content-Type': 'application/json'
+        // The browser will set the correct 'multipart/form-data' header automatically,
+        // including the boundary string.
+        body: formData,
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        // Attempt to parse error response from Django
+        const errorData = await response.json();
+        console.error(`Error ${currentPost ? 'updating' : 'creating'} post:`, errorData);
+        throw new Error(`HTTP error! status: ${response.status}, Details: ${JSON.stringify(errorData)}`);
       }
 
       showNotification(`Post ${currentPost ? 'updated' : 'created'} successfully!`, "success");
       setTitle('');
       setContent('');
+      setImage(null); // Clear image input
+      setImageUrl(''); // Clear image URL
       setCurrentPost(null); // Clear current post after operation
       setShowForm(false); // Hide form
       setCurrentPage('list'); // Go back to list view
@@ -133,6 +154,8 @@ function App() {
     setCurrentPost(null); // Ensure no post is selected for editing
     setTitle('');
     setContent('');
+    setImage(null); // Clear image input
+    setImageUrl(''); // Clear image URL
     setShowForm(true); // Still useful for general form visibility state, though currentPage is primary
     setCurrentPage('create');
   };
@@ -142,9 +165,21 @@ function App() {
     setCurrentPost(post);
     setTitle(post.title);
     setContent(post.content);
+    setImage(null); // Clear file input when editing, new image can be selected
+    setImageUrl(post.image); // Set current image URL for display
     setShowForm(true); // Still useful for general form visibility state
     setCurrentPage('edit');
   };
+
+  // Handle file input change
+  const handleImageChange = (e) => {
+    if (e.target.files && e.target.files[0]) {
+      setImage(e.target.files[0]);
+      // Optionally, set a preview URL for the new image
+      // setImageUrl(URL.createObjectURL(e.target.files[0]));
+    }
+  };
+
 
   // Render the post list
   const renderPostList = () => (
@@ -163,6 +198,15 @@ function App() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {posts.map((post) => (
             <div key={post.id} className="bg-white rounded-lg shadow-lg overflow-hidden flex flex-col justify-between">
+              {post.image && (
+                <div className="relative w-full h-48 overflow-hidden">
+                  <img
+                    src={post.image}
+                    alt={post.title}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              )}
               <div className="p-6">
                 <h3 className="text-xl font-semibold text-gray-900 mb-2">{post.title}</h3>
                 <p className="text-gray-600 text-sm mb-4">Published: {new Date(post.published_date).toLocaleDateString()}</p>
@@ -229,6 +273,29 @@ function App() {
             required
           ></textarea>
         </div>
+        <div>
+            <label htmlFor="image" className="block text-gray-700 text-sm font-bold mb-2">
+                Image:
+            </label>
+            <input
+                type="file"
+                id="image"
+                accept="image/*"
+                onChange={handleImageChange}
+                className="block w-full text-sm text-gray-500
+                    file:mr-4 file:py-2 file:px-4
+                    file:rounded-md file:border-0
+                    file:text-sm file:font-semibold
+                    file:bg-blue-50 file:text-blue-700
+                    hover:file:bg-blue-100"
+            />
+            {imageUrl && !image && ( // Display existing image if no new one is selected
+                <p className="text-sm text-gray-600 mt-2">Current image: <a href={imageUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">View Image</a></p>
+            )}
+            {image && ( // Display preview for newly selected image
+                <p className="text-sm text-gray-600 mt-2">New image selected: {image.name}</p>
+            )}
+        </div>
         <div className="flex justify-end gap-3">
           <button
             type="button"
@@ -255,6 +322,15 @@ function App() {
         <>
           <h2 className="text-3xl font-bold text-gray-900 mb-4">{currentPost.title}</h2>
           <p className="text-gray-600 text-sm mb-6">Published: {new Date(currentPost.published_date).toLocaleDateString()}</p>
+          {currentPost.image && (
+            <div className="mb-6">
+              <img
+                src={currentPost.image}
+                alt={currentPost.title}
+                className="max-w-full h-auto rounded-lg shadow-md"
+              />
+            </div>
+          )}
           <div className="prose max-w-none text-gray-800 leading-relaxed mb-8">
             <p>{currentPost.content}</p> {/* Display full content */}
           </div>
