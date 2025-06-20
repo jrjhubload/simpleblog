@@ -1,6 +1,5 @@
-// App.js
 import React, { useState, useEffect } from 'react';
-// import './App.css'; // Removed: All styling is now handled by Tailwind CSS and inline styles
+import logo from './Nest.png';
 
 function App() {
   const [posts, setPosts] = useState([]);
@@ -125,9 +124,7 @@ function App() {
     // For now, let's keep it simple as instructed to avoid direct prompts.
     // In a real app, this would trigger a confirmation modal.
     // As per instruction: DO NOT use confirm(). The code is running in an iframe and the user will NOT see the confirmation dialog.
-    // For this demonstration, we'll proceed directly or you can add a custom modal UI.
-    // For now, I will add an immediate deletion as per instruction since confirm() is not allowed.
-    // If a more robust solution is needed, I can provide a simple modal component.
+    // For this demonstration, we'll proceed directly or you can add a custom modal component.
 
     // Removed `if (window.confirm("Are you sure you want to delete this post?")) { ... }`
     // Proceed with deletion directly or prompt user with a custom modal.
@@ -406,9 +403,16 @@ function App() {
         `}
       </style>
 
-      <header className="bg-gradient-to-r from-blue-600 to-indigo-700 text-white p-6 shadow-lg">
-        <div className="container mx-auto">
-          <h1 className="text-4xl font-bold text-center">NeST Blogs</h1>
+      {/* UPDATED HEADER SECTION */}
+      <header className="bg-gradient-to-r from-gray-900 to-gray-700 text-white p-6 shadow-lg">
+        <div className="container mx-auto flex items-center justify-center">
+          {/* Nest Technologies Logo - REPLACE THE SRC WITH YOUR ACTUAL LOGO PATH */}
+          <img
+            src={logo} // <== IMPORTANT: Replace with the actual path to your logo file
+            alt="Nest Technologies Logo"
+            className="h-10 mr-4" // Adjust height (h-*) and right margin (mr-*) as needed
+          />
+          <h1 className="text-4xl font-bold">Customer Portal</h1>
         </div>
       </header>
 
